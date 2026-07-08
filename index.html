@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Offline Dino Game (Fast Mode)</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas {
+            background-color: #ffffff;
+            border: 2px solid #000000;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Colors
+        const WHITE = "#FFFFFF";
+        const BLACK = "#000000";
+        const GRAY = "#646464";
+
+        // Dino Object
+        const dino = {
+            x: 50,
+            y: 300,
+            width: 40,
+            height: 40,
+            isJumping: false,
+            jumpSpeed: 15,
+            currentJumpSpeed: 15,
+            gravity: 1.1,
+            
+            jump: function() {
+                if (!this.isJumping) {
+                    this.isJumping = true;
+                    this.currentJumpSpeed = this.jumpSpeed;
+                }
+            },
+            
+            update: function() {
+                if (this.isJumping) {
+                    this.y -= this.currentJumpSpeed;
+                    this.currentJumpSpeed -= this.gravity;
+                    
+                    if (this.y >= 300) {
+                        this.y = 300;
+                        this.isJumping = false;
+                    }
+                }
+            },
+            
+            draw: function() {
+                ctx.fillStyle = BLACK;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        };
+
+        // Cactus Class
+        class Cactus {
+            constructor(speed) {
+                this.x = canvas.width;
+                this.y = 310;
+                this.width = 20;
+                this.height = 30;
+                this.speed = speed;
+            }
+            
+            update() {
+                this.x -= this.speed;
+            }
+            
+            draw() {
+                ctx.fillStyle = GRAY;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        // Game Variables
+        let obstacles = [];
+        let score = 0;
+        let baseSpeed = 20; // Shuruati tez speed (jaisa aapke python code me tha)
+        let spawnTimer = 0;
+        let spawnCooldown = 50;
+        let nextSpawnTarget = Math.floor(Math.random() * 40) + spawnCooldown;
+        let gameOver = false;
+
+        // Key Press Event (SPACEBAR)
+        window.addEventListener("keydown", function(e) {
+            if (e.code === "Space") {
+                dino.jump();
+                // Agar game over ho gaya ho to space dabane par restart ho jaye
+                if (gameOver) {
+                    restartGame();
+                }
+            }
+        });
+
+        function restartGame() {
+            obstacles = [];
+            score = 0;
+            baseSpeed = 20;
+            spawnTimer = 0;
+            dino.y = 300;
+            dino.isJumping = false;
+            gameOver = false;
+            gameLoop();
+        }
+
+        // Collision Detection Logic
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // Main Game Loop
+        function gameLoop() {
+            if (gameOver) return;
+
+            // Clear Screen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Ground Line Draw karein
+            ctx.beginPath();
+            ctx.moveTo(0, 340);
+            ctx.lineTo(canvas.width, 340);
+            ctx.strokeStyle = BLACK;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Dynamic Difficulty Adjustment (Speed badhana)
+            baseSpeed = 20 + Math.floor(score / 5);
+            spawnCooldown = Math.max(25, 50 - Math.floor(score / 5) * 2);
+
+            // Dino Update aur Draw
+            dino.update();
+            dino.draw();
+
+            // Cactus Spawn karne ka logic
+            spawnTimer++;
+            if (spawnTimer > nextSpawnTarget) {
+                obstacles.push(new Cactus(baseSpeed));
+                spawnTimer = 0;
+                nextSpawnTarget = Math.floor(Math.random() * 40) + spawnCooldown;
+            }
+
+            // Obstacles loop
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].update();
+                obstacles[i].draw();
+
+                // Check Collision
+                if (checkCollision(dino, obstacles[i])) {
+                    gameOver = true;
+                    ctx.fillStyle = BLACK;
+                    ctx.font = "30px Arial";
+                    ctx.fillText("GAME OVER", canvas.width / 2 - 90, canvas.height / 2);
+                    ctx.font = "20px Arial";
+                    ctx.fillText("Press SPACEBAR to Restart", canvas.width / 2 - 120, canvas.height / 2 + 40);
+                    console.log("Game Over! Final Score: " + score);
+                    return;
+                }
+
+                // Purane obstacles hatayein aur score badhayein
+                if (obstacles[i].x < -obstacles[i].width) {
+                    obstacles.splice(i, 1);
+                    score++;
+                }
+            }
+
+            // Score aur Speed Display
+            ctx.fillStyle = BLACK;
+            ctx.font = "24px Arial";
+            ctx.fillText(`Score: ${score}  |  Speed: ${baseSpeed}`, 10, 30);
+
+            // Request Next Frame (Tukdi 30-60 FPS par smooth chalegi)
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Game Start Karein
+        gameLoop();
+    </script>
+</body>
+</html>
+
+
+
